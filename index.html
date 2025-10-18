@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>施設ヒートマップ（重み付け & 偏差値）</title>
+  <title>食べ歩きヒートマップ（カテゴリ別・偏差値）</title>
 
   <!-- Leaflet & 依存ライブラリ -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -38,7 +38,7 @@
     /* サイドパネル */
     .panel{
       position:absolute;inset:auto auto 20px 20px;z-index:1000;max-height:calc(100vh - 40px);
-      width:340px;background:var(--panel);backdrop-filter: blur(14px);
+      width:360px;background:var(--panel);backdrop-filter: blur(14px);
       border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
       display:flex;flex-direction:column;overflow:hidden;
     }
@@ -67,9 +67,13 @@
     .switch input:checked::after{transform:translateX(20px)}
     .slider-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
     input[type=range]{-webkit-appearance:none;width:100%;height:6px;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px;outline:none}
-    input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:pointer}
+    input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:pointer}
     .cat-line{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
     .dot{width:10px;height:10px;border-radius:50%}
+
+    /* 色分布の凡例 */
+    .heat-legend{height:8px;border-radius:999px;border:1px solid var(--border);
+      background:linear-gradient(90deg,#ffffb2,#fecc5c,#fd8d3c,#f03b20,#bd0026)}
 
     /* ボタン */
     .btn{appearance:none;border:none;border-radius:10px;padding:8px 12px;cursor:pointer;color:#fff;background:var(--accent);box-shadow:0 6px 18px rgba(78,161,255,.35)}
@@ -117,8 +121,8 @@
   <aside class="panel" id="panel">
     <header>
       <div>
-        <div class="title">施設ヒートマップ</div>
-        <div class="sub">1000m グリッド / 重み付け / 偏差値</div>
+        <div class="title">食べ歩きヒートマップ</div>
+        <div class="sub">可変グリッド / 重み付け / 偏差値</div>
       </div>
       <div style="margin-left:auto" class="badge" id="loaded-badge" title="読み込みデータ">未読込</div>
     </header>
@@ -132,10 +136,33 @@
           <button class="btn ghost" id="btn-none">全解除</button>
         </div>
 
-        <label class="switch" title="ヒートマップ / 偏差値の表示切替">
-          <input type="checkbox" id="cb-heat" checked>
-          <span>🔥 ヒートマップ / 偏差値を表示</span>
-        </label>
+        <div class="grid cols-2" style="align-items:center">
+          <label class="switch" title="ヒートマップ / 偏差値の表示切替">
+            <input type="checkbox" id="cb-heat" checked>
+            <span>🔥 ヒートマップ</span>
+          </label>
+          <label class="switch" title="偏差値ラベル表示切替" style="justify-self:end">
+            <input type="checkbox" id="cb-labels" checked>
+            <span>ラベル</span>
+          </label>
+        </div>
+
+        <div class="grid" style="gap:6px">
+          <div class="slider-row">
+            <span class="sub" style="width:84px">グリッド</span>
+            <input type="range" id="grid-size" min="0.2" max="1.2" step="0.1" value="0.4">
+            <output class="sub" id="grid-out">0.4 km</output>
+          </div>
+          <div class="grid cols-2">
+            <span class="sub">少ない</span>
+            <span class="sub" style="text-align:right">多い</span>
+          </div>
+          <div class="heat-legend"></div>
+          <label class="switch" title="個別のポイント表示切替">
+            <input type="checkbox" id="cb-points" checked>
+            <span>ポイント</span>
+          </label>
+        </div>
 
         <details open>
           <summary>カテゴリ & 重み (0.0-1.0)</summary>
@@ -174,28 +201,35 @@
   <div class="toast" id="toast"></div>
 
 <script>
-/***** 1. カテゴリ定義 *****/
+/***** 1. カテゴリ定義（食べ歩き向け） *****/
 const CATS=[
-  {id:'cafe', label:'カフェ', color:'#0044ff', filter:'"amenity"="cafe"'},
-  {id:'restaurant', label:'レストラン', color:'#ff5500', filter:'"amenity"="restaurant"'},
-  {id:'ramen', label:'ラーメン', color:'#e67e22', filter:'"amenity"="restaurant"'},
-  {id:'hairdresser', label:'美容院', color:'#2ecc71', filter:'"shop"="hairdresser"'},
-  {id:'convenience', label:'コンビニ', color:'#8e44ad', filter:'"shop"="convenience"'},
-  {id:'supermarket', label:'スーパー', color:'#f1c40f', filter:'"shop"="supermarket"'},
-  {id:'fuel', label:'ガソリン', color:'#95a5a6', filter:'"amenity"="fuel"'},
-  {id:'park', label:'公園', color:'#27ae60', filter:'"leisure"="park"'},
-  {id:'community_centre', label:'公民館', color:'#d35400', filter:'"amenity"="community_centre"'},
-  {id:'library', label:'図書館', color:'#2980b9', filter:'"amenity"="library"'},
-  {id:'laundry', label:'クリーニング', color:'#16a085', filter:'"shop"="laundry"'},
-  // 医療・教育
-  {id:'hospital', label:'病院', color:'#c0392b', filter:'"amenity"="hospital"'},
-  {id:'childcare', label:'保育園', color:'#ff66cc', filter:'"amenity"="childcare"'},
-  {id:'kindergarten', label:'幼稚園', color:'#ff99cc', filter:'"amenity"="kindergarten"'},
-  {id:'elem_school', label:'小学校', color:'#3498db', filter:'"amenity"="school"'},
-  {id:'junior_high', label:'中学校', color:'#1abc9c', filter:'"amenity"="school"'},
-  {id:'high_school', label:'高校', color:'#2eccff', filter:'"amenity"="school"'},
-  {id:'university', label:'大学', color:'#9b59b6', filter:'"amenity"="university"'},
-  {id:'college', label:'専門学校', color:'#8e44ad', filter:'"amenity"="college"'}
+  {id:'curry', label:'カレー', color:'#d97706',
+    clauses:['["amenity"~"^(restaurant|fast_food)$"]','["cuisine"~"curry",i]'],
+    test:(tg)=> /^(restaurant|fast_food)$/.test(tg.amenity||'') && /curry/i.test(tg.cuisine||'')},
+  {id:'ramen', label:'ラーメン', color:'#e11d48',
+    clauses:['["amenity"~"^(restaurant|fast_food)$"]','["cuisine"~"(ramen|ラーメン)",i]'],
+    test:(tg,name)=> /^(restaurant|fast_food)$/.test(tg.amenity||'') && (/ramen|ラーメン/i.test(tg.cuisine||'')||/ラーメン/.test(name||''))},
+  {id:'sushi', label:'寿司', color:'#0ea5e9',
+    clauses:['["amenity"="restaurant"]','["cuisine"~"(sushi|寿司)",i]'],
+    test:(tg,name)=> tg.amenity==='restaurant' && (/sushi|寿司/i.test(tg.cuisine||'')||/寿司/.test(name||''))},
+  {id:'patisserie', label:'パティスリー', color:'#f472b6',
+    clauses:['["shop"="pastry"]'],
+    test:(tg,name)=> tg.shop==='pastry' || /patisserie|パティスリー/i.test(name||'')},
+  {id:'bakery', label:'ベーカリー', color:'#a16207',
+    clauses:['["shop"="bakery"]'],
+    test:(tg)=> tg.shop==='bakery'},
+  {id:'confectionery', label:'和菓子・菓子', color:'#22c55e',
+    clauses:['["shop"="confectionery"]'],
+    test:(tg)=> tg.shop==='confectionery'},
+  {id:'ice_cream', label:'アイス', color:'#60a5fa',
+    clauses:['["amenity"="ice_cream"]'],
+    test:(tg)=> tg.amenity==='ice_cream'},
+  {id:'cafe', label:'カフェ', color:'#8b5cf6',
+    clauses:['["amenity"="cafe"]'],
+    test:(tg)=> tg.amenity==='cafe'},
+  {id:'restaurant', label:'レストラン', color:'#fb7185',
+    clauses:['["amenity"="restaurant"]'],
+    test:(tg)=> tg.amenity==='restaurant'}
 ];
 
 /***** 2. UI 生成 *****/
@@ -212,8 +246,8 @@ function makeCatRow(c){
     </div>
     <div class="slider-row">
       <span class="sub" style="width:28px;text-align:right">0</span>
-      <input type="range" id="wt-${c.id}" min="0" max="1" step="0.1" value="0.5" />
-      <output class="sub" for="wt-${c.id}" id="out-${c.id}">0.5</output>
+      <input type="range" id="wt-${c.id}" min="0" max="1" step="0.1" value="0.7" />
+      <output class="sub" for="wt-${c.id}" id="out-${c.id}">0.7</output>
     </div>
   `;
   // スライダー表示更新
@@ -225,7 +259,7 @@ function makeCatRow(c){
 CATS.forEach(c=>legend.appendChild(makeCatRow(c)));
 
 /***** 3. Map 初期化 *****/
-const map=L.map('map',{zoomControl:true}).setView([34.7039,137.7348],14);
+const map=L.map('map',{zoomControl:true}).setView([35.6812,139.7671],14); // 東京駅周辺
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   maxZoom:19,
   attribution:'&copy; OpenStreetMap contributors'
@@ -238,12 +272,21 @@ const fab=document.getElementById('btn-gen');
 const fabSpin=document.getElementById('fab-spin');
 const loadedBadge=document.getElementById('loaded-badge');
 const loadedInfo=document.getElementById('loaded-info');
+const gridSizeEl=document.getElementById('grid-size');
+const gridOutEl=document.getElementById('grid-out');
+const labelsCB=document.getElementById('cb-labels');
+const pointsCB=document.getElementById('cb-points');
 
 document.getElementById('btn-all').addEventListener('click',()=>toggleAll(true));
 document.getElementById('btn-none').addEventListener('click',()=>toggleAll(false));
 document.getElementById('filter-input').addEventListener('input',filterCats);
+gridSizeEl.addEventListener('input',()=>{ gridOutEl.textContent = `${Number(gridSizeEl.value).toFixed(1)} km`; });
 
 heatCB.addEventListener('change',toggleHeat);
+labelsCB.addEventListener('change',toggleHeat);
+pointsCB.addEventListener('change',()=>{
+  Object.values(pointLayers).forEach(l=>{ if(pointsCB.checked) map.addLayer(l); else map.removeLayer(l); });
+});
 document.getElementById('btn-gen').addEventListener('click',generate);
 
 /* 保存・読み込み UI */
@@ -278,7 +321,8 @@ function filterCats(e){
 function toggleHeat(){
   const on=heatCB.checked;
   if(gridLayer)  on?map.addLayer(gridLayer):map.removeLayer(gridLayer);
-  if(labelLayer) on?map.addLayer(labelLayer):map.removeLayer(labelLayer);
+  const labelsOn = labelsCB.checked && on;
+  if(labelLayer) labelsOn?map.addLayer(labelLayer):map.removeLayer(labelLayer);
 }
 
 /***** 4. メイン生成 *****/
@@ -316,47 +360,40 @@ async function generate(){
         catPts[k].push(pt); allFeatures.push(pt);
       });
     }else{
-      /* Overpass クエリ */
-      const qLines=[]; selected.forEach(c=>{['node','way','rel'].forEach(t=>qLines.push(`${t}[${c.filter}](${bb[0]},${bb[1]},${bb[2]},${bb[3]});`));});
+      /* Overpass クエリ（カテゴリ毎の条件を結合） */
+      const qLines=[]; selected.forEach(c=>{
+        const clause = Array.isArray(c.clauses) ? c.clauses.join('') : `[${c.filter}]`;
+        ['node','way','rel'].forEach(t=>qLines.push(`${t}${clause}(${bb[0]},${bb[1]},${bb[2]},${bb[3]});`));
+      });
       const query=`[out:json][timeout:40];\n(\n${qLines.join('\n')}\n);\nout center;`;
 
-      let data; try{
-        const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:query});
-        if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        data=await res.json();
-      }catch(e){ throw new Error('API 取得失敗: '+e.message); }
+      // Overpassミラーのフォールバック
+      const ENDPOINTS=[
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.openstreetmap.ru/api/interpreter',
+        'https://overpass.osm.ch/api/interpreter'
+      ];
+      let data; let lastErr;
+      for(const ep of ENDPOINTS){
+        try{
+          const res=await fetch(ep,{
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','Accept':'application/json'},
+            body:'data='+encodeURIComponent(query)
+          });
+          if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          data=await res.json();
+          break;
+        }catch(e){ lastErr=e; }
+      }
+      if(!data) throw new Error('API 取得失敗: '+(lastErr?.message||'unknown'));
 
       const push=(k,pt)=>{ if(catPts[k]){ pt.properties=Object.assign({category:k}, pt.properties||{}); catPts[k].push(pt); allFeatures.push(pt); } };
       data.elements.forEach(el=>{
         const lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon; if(!(lat&&lon)) return;
-        const tg=el.tags||{}; const am=tg.amenity, sh=tg.shop, ls=tg.leisure, name=tg.name||'';
-        const pt=turf.point([lon,lat],tg);
-
-        if(am==='cafe') push('cafe',pt);
-        if(am==='restaurant'){
-          if(/ramen/i.test(tg.cuisine||'')||/ラーメン/.test(name)) push('ramen',pt); else push('restaurant',pt);
-        }
-        if(sh==='hairdresser') push('hairdresser',pt);
-        if(sh==='convenience') push('convenience',pt);
-        if(sh==='supermarket') push('supermarket',pt);
-        if(am==='fuel') push('fuel',pt);
-        if(ls==='park') push('park',pt);
-        if(am==='community_centre') push('community_centre',pt);
-        if(am==='library') push('library',pt);
-        if(sh==='laundry' || am==='laundry') push('laundry',pt);
-        if(am==='hospital') push('hospital',pt);
-        if(am==='childcare') push('childcare',pt);
-        if(am==='kindergarten') push('kindergarten',pt);
-        if(am==='university') push('university',pt);
-        if(am==='college') push('college',pt);
-
-        if(am==='school'){
-          const level=(tg['isced:level']||tg['school:level']||'').toString();
-          if(/elementary|primary|ISCED-1/i.test(level)||/小学校/.test(name)) push('elem_school',pt);
-          else if(/middle|junior|ISCED-2/i.test(level)||/中学校/.test(name)) push('junior_high',pt);
-          else if(/high|secondary|ISCED-3/i.test(level)||/高等学校|高校/.test(name)) push('high_school',pt);
-          else push('elem_school',pt);
-        }
+        const tg=el.tags||{}; const name=tg.name||''; const pt=turf.point([lon,lat],tg);
+        selected.forEach(c=>{ if(typeof c.test==='function' && c.test(tg,name)) push(c.id,pt); });
       });
       if(!allFeatures.length) throw new Error('該当施設が見つかりませんでした');
     }
@@ -366,7 +403,8 @@ async function generate(){
     }
 
     /* 4-5 グリッド & スコア */
-    const grid=turf.squareGrid([bb[1],bb[0],bb[3],bb[2]],1,{units:'kilometers'});
+    const cellKm = Math.max(0.1, Math.min(5, parseFloat(gridSizeEl.value)||0.4));
+    const grid=turf.squareGrid([bb[1],bb[0],bb[3],bb[2]],cellKm,{units:'kilometers'});
     const scores=[];
     grid.features.forEach(cell=>{
       let s=0;
@@ -399,8 +437,9 @@ async function generate(){
     selected.forEach(c=>{
       const pts=catPts[c.id]; if(!pts.length) return;
       pointLayers[c.id]=L.geoJson(turf.featureCollection(pts),{
-        pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:2.5,color:c.color,weight:0.4,fillOpacity:0.8})
-      }).addTo(map);
+        pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:3,color:c.color,weight:0.6,fillOpacity:0.85})
+      });
+      if(pointsCB.checked) pointLayers[c.id].addTo(map);
       pts.forEach(p=>bounds.push([p.geometry.coordinates[1],p.geometry.coordinates[0]]));
     });
     // if(bounds.length){ map.fitBounds(bounds); }
@@ -430,7 +469,7 @@ function saveGeoJSON(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   const stamp=new Date().toISOString().replace(/[:.]/g,'-');
-  a.href=url; a.download=`facilities_${stamp}.geojson`;
+  a.href=url; a.download=`foodmap_${stamp}.geojson`;
   document.body.appendChild(a); a.click();
   URL.revokeObjectURL(url); a.remove();
   showToast('GeoJSONを保存しました');
@@ -466,4 +505,3 @@ async function onFileChosen(e){
 </script>
 </body>
 </html>
-
