@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -320,6 +321,129 @@ function makeCatRow(c){
   slider.addEventListener('input',()=>{ out.textContent = Number(slider.value).toFixed(1); });
   return row;
 }
+
+// 追加カテゴリ（食に関する幅広い情報をカバー）
+const EXTRA_CATS=[
+  {id:'soba_udon', label:'そば・うどん', color:'#14b8a6',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/soba|udon/.test(cu) || /そば|蕎麦|うどん/.test(nm));
+    }},
+  {id:'tempura', label:'天ぷら', color:'#ca8a04',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/tempura/.test(cu) || /天ぷら|てんぷら/.test(nm));
+    }},
+  {id:'tonkatsu', label:'とんかつ', color:'#b45309',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/tonkatsu|katsu/.test(cu) || /とんかつ|カツ/.test(nm));
+    }},
+  {id:'yakiniku', label:'焼肉', color:'#ef4444',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/yakiniku|bbq/.test(cu) || /焼肉/.test(nm));
+    }},
+  {id:'yakitori', label:'焼き鳥', color:'#dc2626',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/焼鳥|焼き鳥|やきとり/.test(nm));
+    }},
+  {id:'okonomiyaki', label:'お好み焼・もんじゃ', color:'#ea580c',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/okonomiyaki|monja|teppanyaki/.test(cu) || /お好み|もんじゃ/.test(nm));
+    }},
+  {id:'burger', label:'ハンバーガー', color:'#f59e0b',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/burger/.test(cu) || /ハンバーガー|バーガー|burger/i.test(nm));
+    }},
+  {id:'pizza', label:'ピザ', color:'#84cc16',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/pizza/.test(cu) || /ピザ|pizzeria/i.test(nm));
+    }},
+  {id:'steak', label:'ステーキ', color:'#f97316',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/steak/.test(cu) || /ステーキ/i.test(nm));
+    }},
+  {id:'chinese', label:'中華', color:'#ef4444',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/chinese|sichuan|cantonese|taiwanese/.test(cu) || /中華|中国|餃子|小籠包/.test(nm));
+    }},
+  {id:'korean', label:'韓国', color:'#22c55e',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/korean/.test(cu) || /韓国|コリア|キムチ/.test(nm));
+    }},
+  {id:'thai_vietnamese', label:'タイ・ベトナム', color:'#10b981',
+    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|fast_food|food_court)$/.test(am) && (/(thai|vietnamese|lao|laotian)/.test(cu) || /タイ|ベトナム|フォー|トムヤム|バインミー/.test(nm));
+    }},
+  {id:'seafood_restaurant', label:'海鮮料理', color:'#06b6d4',
+    clauses:['["amenity"~"^(restaurant|food_court)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
+      return /^(restaurant|food_court)$/.test(am) && (/seafood|fish/.test(cu) || /海鮮|魚介/.test(nm));
+    }},
+  {id:'izakaya', label:'居酒屋', color:'#8b5cf6',
+    clauses:['["amenity"~"^(restaurant|pub|bar|biergarten)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const nm=name||'';
+      return /^(restaurant|pub|bar|biergarten)$/.test(am) && (/居酒屋|やきとん|大衆酒場/.test(nm));
+    }},
+  {id:'bar_pub', label:'バー・パブ', color:'#a855f7',
+    clauses:['["amenity"~"^(bar|pub|biergarten)$"]'],
+    test:(tg,name)=> (/^(bar|pub|biergarten)$/.test(tg.amenity||'')) || /バー|パブ|ビア/.test(name||'')},
+  {id:'tea_bubbletea', label:'お茶・タピオカ', color:'#22d3ee',
+    clauses:['["amenity"="cafe"]','["shop"~"^(tea|beverages|coffee)$"]'],
+    test:(tg,name)=>{
+      const am=tg.amenity||''; const sh=tg.shop||''; const nm=name||''; const cu=(tg.cuisine||'').toLowerCase();
+      return am==='cafe' || /^(tea|beverages|coffee)$/.test(sh) || /(bubble|boba)/i.test(cu) || /タピ|タピオカ|茶|ティー/.test(nm);
+    }},
+  {id:'supermarket', label:'スーパー', color:'#0ea5e9',
+    clauses:['["shop"="supermarket"]'],
+    test:(tg)=> tg.shop==='supermarket'},
+  {id:'convenience', label:'コンビニ', color:'#3b82f6',
+    clauses:['["shop"="convenience"]'],
+    test:(tg)=> tg.shop==='convenience'},
+  {id:'greengrocer', label:'八百屋', color:'#16a34a',
+    clauses:['["shop"="greengrocer"]'],
+    test:(tg)=> tg.shop==='greengrocer'},
+  {id:'butcher', label:'精肉店', color:'#ef4444',
+    clauses:['["shop"="butcher"]'],
+    test:(tg)=> tg.shop==='butcher'},
+  {id:'fishmonger', label:'鮮魚店', color:'#60a5fa',
+    clauses:['["shop"="seafood"]'],
+    test:(tg)=> tg.shop==='seafood'},
+  {id:'alcohol_shop', label:'酒屋', color:'#d946ef',
+    clauses:['["shop"~"^(alcohol|beverages)$"]'],
+    test:(tg)=> /^(alcohol|beverages)$/.test(tg.shop||'')}
+];
+
+// 追記カテゴリを追加
+CATS.push(...EXTRA_CATS);
+
+// 末尾に「その他」カテゴリを追加（未分類を包括）
+const OTHER_CAT={id:'others', label:'その他', color:'#9ca3af', clauses:[], test:()=>false};
+CATS.push(OTHER_CAT);
+
 CATS.forEach(c=>legend.appendChild(makeCatRow(c)));
 
 // 3) Map 初期化
@@ -476,8 +600,8 @@ async function generate(){
       });
     }else{
       // 食関連の広めの候補を一括取得してからローカルで分類
-      const amVals = 'restaurant|fast_food|food_court|cafe|ice_cream';
-      const shopVals = 'bakery|confectionery|pastry|ice_cream|chocolate|deli';
+      const amVals = 'restaurant|fast_food|food_court|cafe|ice_cream|bar|pub|biergarten|marketplace';
+      const shopVals = 'bakery|confectionery|pastry|ice_cream|chocolate|deli|supermarket|convenience|butcher|seafood|greengrocer|alcohol|tea|coffee|beverages|cheese|farm|health_food|spices|herbalist|dairy';
       const qLines=[];
       ['node','way','rel'].forEach(t=>{
         qLines.push(`${t}["amenity"~"^(${amVals})$"](${bb[0]},${bb[1]},${bb[2]},${bb[3]});`);
@@ -507,10 +631,15 @@ async function generate(){
       if(!data) throw new Error('API 取得失敗: '+(lastErr?.message||'unknown'));
 
       const push=(k,pt)=>{ if(catPts[k]){ pt.properties=Object.assign({category:k}, pt.properties||{}); catPts[k].push(pt); allFeatures.push(pt); } };
+      const OTHER_ID='others';
+      const otherSelected = !!catPts[OTHER_ID];
+      const normalCats = selected.filter(c=>c.id!==OTHER_ID);
       data.elements.forEach(el=>{
         const lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon; if(!(lat&&lon)) return;
         const tg=el.tags||{}; const name=tg.name||''; const pt=turf.point([lon,lat],tg);
-        selected.forEach(c=>{ if(typeof c.test==='function' && c.test(tg,name)) push(c.id,pt); });
+        let matched=false;
+        normalCats.forEach(c=>{ if(typeof c.test==='function' && c.test(tg,name)) { push(c.id,pt); matched=true; } });
+        if(!matched && otherSelected) push(OTHER_ID, pt);
       });
       if(!allFeatures.length) throw new Error('該当施設が見つかりませんでした');
     }
