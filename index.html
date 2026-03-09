@@ -1,143 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>食べ歩きヒートマップ（カテゴリ別・偏差値）</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-  <script src="https://unpkg.com/chroma-js@2.4.2/chroma.min.js"></script>
-
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <style>
-    :root{
-      --bg: #0b0d12;
-      --panel: rgba(22,25,32,.78);
-      --border: rgba(255,255,255,.10);
-      --text: #e9eef7;
-      --muted: #9aa3b2;
-      --accent: #4ea1ff;
-      --accent-2:#7cddff;
-      --chip:#1e2735;
-      --danger:#ff6b6b;
-      --ok:#2ecc71;
-      --shadow: 0 12px 40px rgba(0,0,0,.35);
-      --radius: 14px;
-    }
-    @media (prefers-color-scheme: light){
-      :root{
-        --bg:#f5f7fb; --panel:rgba(255,255,255,.92); --border:rgba(0,0,0,.07);
-        --text:#0f1728; --muted:#5e6b80; --chip:#eef2f8; --shadow:0 10px 30px rgba(13,27,62,.12);
-      }
-    }
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, sans-serif}
-    #map{height:100vh;width:100%}
-
-    .panel{
-      position:absolute;inset:auto auto 20px 20px;z-index:1000;max-height:calc(100vh - 40px);
-      width:360px;background:var(--panel);backdrop-filter: blur(14px);
-      border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
-      display:flex;flex-direction:column;overflow:hidden;transition:transform .25s ease, opacity .2s ease;
-    }
-    .panel.hidden{ transform:translateX(-110%); opacity:0; pointer-events:none }
-    .panel header{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;border-bottom:1px solid var(--border)}
-    .title{font-weight:700;letter-spacing:.2px}
-    .sub{color:var(--muted);font-size:12px}
-    .content{padding:10px 12px 14px;overflow:auto}
-    .row{display:flex;align-items:center;gap:10px}
-    .grid{display:grid;gap:8px}
-    .grid.cols-2{grid-template-columns:1fr 1fr}
-    .divider{height:1px;background:var(--border);margin:10px 0}
-
-    .search{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:6px 10px}
-    .search input{all:unset;flex:1}
-    .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:var(--chip);font-size:12px;color:var(--muted)}
-    .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);font-size:12px}
-    .badge.ok{border-color:#1f9d64;color:#1f9d64}
-    .badge.warn{border-color:#b45309;color:#b45309}
-
-    .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
-    .switch input{appearance:none;width:42px;height:22px;background:#778;border-radius:999px;position:relative;outline:none;transition:.2s}
-    .switch input:checked{background:var(--accent)}
-    .switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s}
-    .switch input:checked::after{transform:translateX(20px)}
-    .slider-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
-    input[type=range]{-webkit-appearance:none;width:100%;height:6px;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px;outline:none}
-    input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:pointer}
-    .cat-line{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
-    .dot{width:10px;height:10px;border-radius:50%}
-
-    .heat-legend{height:8px;border-radius:999px;border:1px solid var(--border);
-      background:linear-gradient(90deg,#ffffb2,#fecc5c,#fd8d3c,#f03b20,#bd0026)}
-
-    .btn{appearance:none;border:none;border-radius:10px;padding:8px 12px;cursor:pointer;color:#fff;background:var(--accent);box-shadow:0 6px 18px rgba(78,161,255,.35)}
-    .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border);box-shadow:none}
-    .btn.warn{background:var(--danger)}
-    .btn:disabled{opacity:.55;cursor:not-allowed}
-
-    .fab{
-      position:absolute;right:22px;bottom:22px;z-index:1001;display:flex;align-items:center;gap:10px;
-      background:linear-gradient(135deg,var(--accent),var(--accent-2));border:none;color:#001018;
-      padding:14px 18px;border-radius:16px;font-weight:700;letter-spacing:.2px;box-shadow:0 14px 36px rgba(78,161,255,.45);cursor:pointer;
-    }
-    .fab .spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,.2);border-top-color:#001018;border-radius:50%;animation:spin 1s linear infinite;display:none}
-    .fab.loading .spinner{display:inline-block}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    .menu-btn{
-      position:absolute;left:14px;top:14px;z-index:1002;display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      background:var(--panel);border:1px solid var(--border);color:var(--text);
-      padding:8px;border-radius:12px;box-shadow:var(--shadow);cursor:pointer
-    }
-    .menu-btn svg{display:block}
-
-    .mini-fab{
-      position:absolute;right:22px;bottom:86px;z-index:1001;display:inline-flex;align-items:center;justify-content:center;
-      background:var(--panel);border:1px solid var(--border);color:var(--text);
-      width:44px;height:44px;border-radius:14px;box-shadow:var(--shadow);cursor:pointer
-    }
-
-    details{border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,.03)}
-    details>summary{cursor:pointer;list-style:none}
-    details>summary::-webkit-details-marker{display:none}
-
-    .dev-label{color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
-
-    .toast{
-      position:absolute;left:50%;bottom:92px;transform:translateX(-50%);
-      background:var(--panel);border:1px solid var(--border);backdrop-filter:blur(10px);
-      padding:10px 14px;border-radius:12px;box-shadow:var(--shadow);z-index:1002;display:none
-    }
-
-    @media (max-width:820px){
-      .panel{left:12px;right:12px;bottom:auto;top:12px;width:auto;max-height:60vh}
-      .fab{right:14px;bottom:14px}
-      .toast{bottom:84px}
-    }
-
-    /* Leaflet default controls adjustments */
-    .leaflet-top.leaflet-right{ right:14px; top:14px }
-    .leaflet-top{ margin-top:max(10px, env(safe-area-inset-top)) }
-
-    /* About modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1100}
-    .modal-backdrop[hidden]{display:none !important}
-    .modal{max-width:min(640px, 92vw);width:100%;padding:0 12px}
-    .modal-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
-    .modal-card header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
-    .modal-card .body{padding:12px 14px;max-height:min(70vh, 520px);overflow:auto}
-    .modal-close{appearance:none;border:none;background:transparent;color:var(--text);cursor:pointer}
-    .modal h3{margin:10px 0 6px;font-size:15px}
-    .modal p{margin:4px 0;color:var(--muted)}
-    .modal a{color:var(--accent)}
-  </style>
+  <link rel="stylesheet" href="./assets/styles/main.css" />
 </head>
 <body>
   <div id="map"></div>
+
   <button class="menu-btn" id="btn-menu" title="メニューの表示/非表示" aria-label="メニュー">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+    </svg>
   </button>
 
   <aside class="panel" id="panel">
@@ -146,90 +23,100 @@
         <div class="title">食べ歩きヒートマップ</div>
         <div class="sub">可変グリッド / 重み付け / 偏差値</div>
       </div>
-      <div style="margin-left:auto" class="badge" id="loaded-badge" title="読み込みデータ">未読込</div>
+      <div class="badge" id="loaded-badge" title="読み込みデータ">未読込</div>
     </header>
 
     <div class="content">
-      <div class="grid" style="gap:10px">
+      <div class="grid panel-grid">
         <div class="search" title="カテゴリ名で絞り込み">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.2-4.2M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <input id="filter-input" placeholder="カテゴリを検索…">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M21 21l-4.2-4.2M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <input id="filter-input" placeholder="カテゴリを検索…" />
           <button class="btn ghost" id="btn-all">全選択</button>
           <button class="btn ghost" id="btn-none">全解除</button>
         </div>
 
-        <div class="grid cols-2" style="align-items:center">
+        <div class="grid cols-2">
           <label class="switch" title="ヒートマップ / 偏差値の表示切替">
-            <input type="checkbox" id="cb-heat" checked>
-            <span>🔥 ヒートマップ</span>
+            <input type="checkbox" id="cb-heat" checked />
+            <span>ヒートマップ</span>
           </label>
-          <label class="switch" title="偏差値ラベル表示切替" style="justify-self:end">
-            <input type="checkbox" id="cb-labels" checked>
+          <label class="switch switch-right" title="偏差値ラベル表示切替">
+            <input type="checkbox" id="cb-labels" checked />
             <span>ラベル</span>
           </label>
         </div>
 
-        <div class="grid" style="gap:6px">
+        <div class="grid">
           <div class="slider-row">
-            <span class="sub" style="width:84px">グリッド</span>
-            <input type="range" id="grid-size" min="0.2" max="1.2" step="0.1" value="0.4">
+            <span class="sub slider-label">グリッド</span>
+            <input type="range" id="grid-size" min="0.2" max="1.2" step="0.1" value="0.4" />
             <output class="sub" id="grid-out">0.4 km</output>
           </div>
           <div class="grid cols-2">
             <span class="sub">少ない</span>
-            <span class="sub" style="text-align:right">多い</span>
+            <span class="sub align-right">多い</span>
           </div>
           <div class="heat-legend"></div>
           <label class="switch" title="個別のポイント表示切替">
-            <input type="checkbox" id="cb-points" checked>
+            <input type="checkbox" id="cb-points" checked />
             <span>ポイント</span>
           </label>
         </div>
 
         <details open>
-          <summary>カテゴリ & 重み (0.0-1.0)</summary>
-          <div id="legend" class="grid" style="margin-top:8px"></div>
+          <summary>カテゴリ &amp; 重み (0.0-1.0)</summary>
+          <div id="legend" class="grid legend-grid"></div>
         </details>
 
         <details>
           <summary>データ</summary>
-          <div class="grid" style="margin-top:8px">
-            <div class="row">
+          <div class="grid legend-grid">
+            <div class="row wrap">
               <button class="btn" id="btn-save" title="現在の取得結果をGeoJSONで保存">保存 (GeoJSON)</button>
               <button class="btn ghost" id="btn-load">読み込み</button>
-              <input type="file" id="file-input" accept=".json,.geojson,application/json" style="display:none">
+              <button class="btn ghost" id="btn-history">履歴</button>
+              <input type="file" id="file-input" accept=".json,.geojson,application/json" hidden />
             </div>
             <label class="switch" title="読み込みデータのみで生成（Overpass無効）">
-              <input type="checkbox" id="use-loaded">
+              <input type="checkbox" id="use-loaded" />
               <span>読み込みデータを使用</span>
             </label>
-            <div class="row" style="justify-content:space-between">
+            <div class="row space-between">
               <span class="sub">読み込み状況</span>
               <span class="badge" id="loaded-info">—</span>
             </div>
           </div>
         </details>
 
-        <button class="btn ghost" id="btn-about" style="margin-top:6px">このアプリについて</button>
+        <button class="btn ghost" id="btn-about">このアプリについて</button>
       </div>
     </div>
   </aside>
 
   <button class="fab" id="btn-gen">
-    <span class="spinner" id="fab-spin"></span>
+    <span class="spinner"></span>
     ヒートマップ生成
   </button>
 
+  <button class="mini-fab" id="btn-locate" title="現在地へ移動" aria-label="現在地へ移動">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m12.5 0a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+    </svg>
+  </button>
+
   <div class="toast" id="toast"></div>
-  
-  <!-- About modal -->
+
   <div class="modal-backdrop" id="about-backdrop" hidden>
     <div class="modal">
       <div class="modal-card">
         <header>
           <div class="title">このアプリについて</div>
           <button class="modal-close" id="about-close" aria-label="閉じる">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
           </button>
         </header>
         <div class="body">
@@ -249,502 +136,38 @@
       </div>
     </div>
   </div>
-  <button class="mini-fab" id="btn-locate" title="現在地へ移動" aria-label="現在地へ移動">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m12.5 0a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-  </button>
 
-<script>
-// 1) カテゴリ定義（食べ歩き向け）
-const CATS=[
-  {id:'curry', label:'カレー', color:'#d97706',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=> {
-      const am = tg.amenity||''; const cuisine=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am)
-        && (/curry/.test(cuisine) || /(indian|nepalese|pakistani|sri ?lankan)/.test(cuisine) || /カレー|印度|インド|ネパール|スリランカ/i.test(nm));
-    }},
-  {id:'ramen', label:'ラーメン', color:'#e11d48',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=> {
-      const am=tg.amenity||''; const cuisine=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/(ramen|noodle)/i.test(cuisine) || /ラーメン|拉麺/i.test(nm));
-    }},
-  {id:'sushi', label:'寿司', color:'#0ea5e9',
-    clauses:['["amenity"~"^(restaurant|food_court)$"]'],
-    test:(tg,name)=> {
-      const am=tg.amenity||''; const cuisine=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|food_court)$/.test(am) && (/sushi/.test(cuisine) || /寿司|鮨|すし|回転寿司/i.test(nm));
-    }},
-  {id:'patisserie', label:'パティスリー', color:'#f472b6',
-    clauses:['["shop"~"^(confectionery|pastry)$"]','["amenity"="cafe"]'],
-    test:(tg,name)=> {
-      const sh=tg.shop||''; const am=tg.amenity||''; const nm=name||'';
-      return /^(confectionery|pastry)$/.test(sh) || (am==='cafe' && /patisserie|ケーキ|洋菓子|スイーツ/i.test(nm));
-    }},
-  {id:'bakery', label:'ベーカリー', color:'#a16207',
-    clauses:['["shop"="bakery"]','["amenity"="cafe"]'],
-    test:(tg,name)=> tg.shop==='bakery' || (/パン|ベーカリー|boulangerie|bakery/i.test(name||'') && tg.amenity==='cafe')},
-  {id:'confectionery', label:'和菓子・菓子', color:'#22c55e',
-    clauses:['["shop"~"^(confectionery|chocolate)$"]'],
-    test:(tg,name)=> /^(confectionery|chocolate)$/.test(tg.shop||'') || /和菓子|饅頭|最中|羊羹|大福|チョコ|ショコラ/i.test(name||'')},
-  {id:'ice_cream', label:'アイス', color:'#60a5fa',
-    clauses:['["amenity"="ice_cream"]','["shop"="ice_cream"]'],
-    test:(tg,name)=> tg.amenity==='ice_cream' || tg.shop==='ice_cream' || /gelato|ジェラート|アイス/i.test(name||'')},
-  {id:'cafe', label:'カフェ', color:'#8b5cf6',
-    clauses:['["amenity"="cafe"]'],
-    test:(tg,name)=> tg.amenity==='cafe' || /カフェ|喫茶|coffee|コーヒー/i.test(name||'')},
-  {id:'restaurant', label:'レストラン', color:'#fb7185',
-    clauses:['["amenity"="restaurant"]'],
-    test:(tg)=> tg.amenity==='restaurant'}
-];
-
-// 2) UI 生成
-const legend=document.getElementById('legend');
-function makeCatRow(c){
-  const row=document.createElement('div');
-  row.className='cat-line';
-  row.dataset.cat = c.id;
-  row.innerHTML=`
-    <input type="checkbox" id="chk-${c.id}" checked>
-    <div class="row" style="gap:10px">
-      <span class="dot" style="background:${c.color}"></span>
-      <span>${c.label}</span>
+  <div class="modal-backdrop" id="history-backdrop" hidden>
+    <div class="modal">
+      <div class="modal-card">
+        <header>
+          <div>
+            <div class="title">保存履歴</div>
+            <div class="sub">GeoJSON保存時のスナップショット</div>
+          </div>
+          <button class="modal-close" id="history-close" aria-label="閉じる">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </header>
+        <div class="body">
+          <div class="history-list" id="history-list"></div>
+          <div class="history-empty" id="history-empty" hidden>
+            保存された履歴がありません<br />
+            <small>「生成」後に「保存 (GeoJSON)」を実行してください</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" id="btn-history-clear">履歴をクリア</button>
+        </div>
+      </div>
     </div>
-    <div class="slider-row">
-      <span class="sub" style="width:28px;text-align:right">0</span>
-      <input type="range" id="wt-${c.id}" min="0" max="1" step="0.1" value="0.7" />
-      <output class="sub" for="wt-${c.id}" id="out-${c.id}">0.7</output>
-    </div>
-  `;
-  const slider = row.querySelector(`#wt-${c.id}`);
-  const out = row.querySelector(`#out-${c.id}`);
-  slider.addEventListener('input',()=>{ out.textContent = Number(slider.value).toFixed(1); });
-  return row;
-}
+  </div>
 
-// 追加カテゴリ（食に関する幅広い情報をカバー）
-const EXTRA_CATS=[
-  {id:'soba_udon', label:'そば・うどん', color:'#14b8a6',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/soba|udon/.test(cu) || /そば|蕎麦|うどん/.test(nm));
-    }},
-  {id:'tempura', label:'天ぷら', color:'#ca8a04',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/tempura/.test(cu) || /天ぷら|てんぷら/.test(nm));
-    }},
-  {id:'tonkatsu', label:'とんかつ', color:'#b45309',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/tonkatsu|katsu/.test(cu) || /とんかつ|カツ/.test(nm));
-    }},
-  {id:'yakiniku', label:'焼肉', color:'#ef4444',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/yakiniku|bbq/.test(cu) || /焼肉/.test(nm));
-    }},
-  {id:'yakitori', label:'焼き鳥', color:'#dc2626',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/焼鳥|焼き鳥|やきとり/.test(nm));
-    }},
-  {id:'okonomiyaki', label:'お好み焼・もんじゃ', color:'#ea580c',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/okonomiyaki|monja|teppanyaki/.test(cu) || /お好み|もんじゃ/.test(nm));
-    }},
-  {id:'burger', label:'ハンバーガー', color:'#f59e0b',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/burger/.test(cu) || /ハンバーガー|バーガー|burger/i.test(nm));
-    }},
-  {id:'pizza', label:'ピザ', color:'#84cc16',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/pizza/.test(cu) || /ピザ|pizzeria/i.test(nm));
-    }},
-  {id:'steak', label:'ステーキ', color:'#f97316',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/steak/.test(cu) || /ステーキ/i.test(nm));
-    }},
-  {id:'chinese', label:'中華', color:'#ef4444',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/chinese|sichuan|cantonese|taiwanese/.test(cu) || /中華|中国|餃子|小籠包/.test(nm));
-    }},
-  {id:'korean', label:'韓国', color:'#22c55e',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/korean/.test(cu) || /韓国|コリア|キムチ/.test(nm));
-    }},
-  {id:'thai_vietnamese', label:'タイ・ベトナム', color:'#10b981',
-    clauses:['["amenity"~"^(restaurant|fast_food|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|fast_food|food_court)$/.test(am) && (/(thai|vietnamese|lao|laotian)/.test(cu) || /タイ|ベトナム|フォー|トムヤム|バインミー/.test(nm));
-    }},
-  {id:'seafood_restaurant', label:'海鮮料理', color:'#06b6d4',
-    clauses:['["amenity"~"^(restaurant|food_court)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const cu=(tg.cuisine||'').toLowerCase(); const nm=name||'';
-      return /^(restaurant|food_court)$/.test(am) && (/seafood|fish/.test(cu) || /海鮮|魚介/.test(nm));
-    }},
-  {id:'izakaya', label:'居酒屋', color:'#8b5cf6',
-    clauses:['["amenity"~"^(restaurant|pub|bar|biergarten)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const nm=name||'';
-      return /^(restaurant|pub|bar|biergarten)$/.test(am) && (/居酒屋|やきとん|大衆酒場/.test(nm));
-    }},
-  {id:'bar_pub', label:'バー・パブ', color:'#a855f7',
-    clauses:['["amenity"~"^(bar|pub|biergarten)$"]'],
-    test:(tg,name)=> (/^(bar|pub|biergarten)$/.test(tg.amenity||'')) || /バー|パブ|ビア/.test(name||'')},
-  {id:'tea_bubbletea', label:'お茶・タピオカ', color:'#22d3ee',
-    clauses:['["amenity"="cafe"]','["shop"~"^(tea|beverages|coffee)$"]'],
-    test:(tg,name)=>{
-      const am=tg.amenity||''; const sh=tg.shop||''; const nm=name||''; const cu=(tg.cuisine||'').toLowerCase();
-      return am==='cafe' || /^(tea|beverages|coffee)$/.test(sh) || /(bubble|boba)/i.test(cu) || /タピ|タピオカ|茶|ティー/.test(nm);
-    }},
-  {id:'supermarket', label:'スーパー', color:'#0ea5e9',
-    clauses:['["shop"="supermarket"]'],
-    test:(tg)=> tg.shop==='supermarket'},
-  {id:'convenience', label:'コンビニ', color:'#3b82f6',
-    clauses:['["shop"="convenience"]'],
-    test:(tg)=> tg.shop==='convenience'},
-  {id:'greengrocer', label:'八百屋', color:'#16a34a',
-    clauses:['["shop"="greengrocer"]'],
-    test:(tg)=> tg.shop==='greengrocer'},
-  {id:'butcher', label:'精肉店', color:'#ef4444',
-    clauses:['["shop"="butcher"]'],
-    test:(tg)=> tg.shop==='butcher'},
-  {id:'fishmonger', label:'鮮魚店', color:'#60a5fa',
-    clauses:['["shop"="seafood"]'],
-    test:(tg)=> tg.shop==='seafood'},
-  {id:'alcohol_shop', label:'酒屋', color:'#d946ef',
-    clauses:['["shop"~"^(alcohol|beverages)$"]'],
-    test:(tg)=> /^(alcohol|beverages)$/.test(tg.shop||'')}
-];
-
-// 追記カテゴリを追加
-CATS.push(...EXTRA_CATS);
-
-// 末尾に「その他」カテゴリを追加（未分類を包括）
-const OTHER_CAT={id:'others', label:'その他', color:'#9ca3af', clauses:[], test:()=>false};
-CATS.push(OTHER_CAT);
-
-CATS.forEach(c=>legend.appendChild(makeCatRow(c)));
-
-// 3) Map 初期化
-const map=L.map('map',{zoomControl:true}).setView([35.6812,139.7671],14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19,
-  attribution:'&copy; OpenStreetMap contributors'
-}).addTo(map);
-map.zoomControl.setPosition('topright');
-
-let gridLayer,labelLayer; const pointLayers={};
-const heatCB=document.getElementById('cb-heat');
-const toastEl=document.getElementById('toast');
-const fab=document.getElementById('btn-gen');
-const fabSpin=document.getElementById('fab-spin');
-const loadedBadge=document.getElementById('loaded-badge');
-const loadedInfo=document.getElementById('loaded-info');
-const gridSizeEl=document.getElementById('grid-size');
-const gridOutEl=document.getElementById('grid-out');
-const labelsCB=document.getElementById('cb-labels');
-const pointsCB=document.getElementById('cb-points');
-const menuBtn=document.getElementById('btn-menu');
-const panelEl=document.getElementById('panel');
-const locateBtn=document.getElementById('btn-locate');
-const aboutBtn=document.getElementById('btn-about');
-const aboutBackdrop=document.getElementById('about-backdrop');
-const aboutClose=document.getElementById('about-close');
-
-document.getElementById('btn-all').addEventListener('click',()=>toggleAll(true));
-document.getElementById('btn-none').addEventListener('click',()=>toggleAll(false));
-document.getElementById('filter-input').addEventListener('input',filterCats);
-gridSizeEl.addEventListener('input',()=>{ gridOutEl.textContent = `${Number(gridSizeEl.value).toFixed(1)} km`; });
-
-heatCB.addEventListener('change',toggleHeat);
-labelsCB.addEventListener('change',toggleHeat);
-pointsCB.addEventListener('change',()=>{
-  Object.values(pointLayers).forEach(l=>{ if(pointsCB.checked) map.addLayer(l); else map.removeLayer(l); });
-});
-menuBtn.addEventListener('click',()=>{
-  panelEl.classList.toggle('hidden');
-  try{ localStorage.setItem('panel-hidden', panelEl.classList.contains('hidden')?'1':'0'); }catch{}
-});
-document.getElementById('btn-gen').addEventListener('click',generate);
-
-// About modal open/close（堅牢化）
-function openAbout(){ if(aboutBackdrop) aboutBackdrop.hidden=false; }
-function closeAbout(){ if(aboutBackdrop) aboutBackdrop.hidden=true; }
-if(aboutBtn) aboutBtn.addEventListener('click',openAbout);
-if(aboutClose) aboutClose.addEventListener('click',closeAbout);
-if(aboutBackdrop) aboutBackdrop.addEventListener('click',(e)=>{ if(e.target===aboutBackdrop) closeAbout(); });
-window.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closeAbout(); });
-
-document.getElementById('btn-save').addEventListener('click',saveGeoJSON);
-document.getElementById('btn-load').addEventListener('click',()=>document.getElementById('file-input').click());
-document.getElementById('file-input').addEventListener('change',onFileChosen);
-
-let loadedDataset=null;  // {type:'FeatureCollection', features:[Point...]}
-let lastExport=null;
-let userLayer=L.layerGroup().addTo(map); let userMarker=null; let userAccCircle=null; let geoWatchId=null;
-
-function showToast(msg, type=''){
-  toastEl.textContent=msg;
-  toastEl.style.display='block';
-  toastEl.style.borderColor = type==='error' ? 'var(--danger)' : 'var(--border)';
-  clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=>toastEl.style.display='none', 2400);
-}
-function toggleAll(flag){
-  CATS.forEach(c=>{ const el=document.getElementById(`chk-${c.id}`); if(el) el.checked=flag; });
-}
-function filterCats(e){
-  const q=(e.target.value||'').trim().toLowerCase();
-  [...legend.children].forEach(ch=>{
-    const id=ch.dataset.cat;
-    const cat=CATS.find(c=>c.id===id);
-    const text=(cat?.label+' '+cat?.id)||'';
-    ch.style.display = text.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
-function toggleHeat(){
-  const on=heatCB.checked;
-  if(gridLayer)  on?map.addLayer(gridLayer):map.removeLayer(gridLayer);
-  const labelsOn = labelsCB.checked && on;
-  if(labelLayer) labelsOn?map.addLayer(labelLayer):map.removeLayer(labelLayer);
-}
-
-// パネル表示状態の復元
-try{ if(localStorage.getItem('panel-hidden')==='1'){ panelEl.classList.add('hidden'); } }catch{}
-
-// 現在地ボタンと位置表示
-locateBtn.addEventListener('click',()=>{
-  if(!('geolocation' in navigator)){
-    showToast('現在地にアクセスできません（未対応端末）','error');
-    return;
-  }
-  const opts={enableHighAccuracy:true, maximumAge:5000, timeout:10000};
-  navigator.geolocation.getCurrentPosition((pos)=>{
-    const {latitude:lat, longitude:lon, accuracy} = pos.coords;
-    updateUserLocation(lat,lon,accuracy);
-    map.setView([lat,lon], Math.max(16, map.getZoom()));
-    if(geoWatchId==null){ geoWatchId = navigator.geolocation.watchPosition((p)=>{
-      updateUserLocation(p.coords.latitude, p.coords.longitude, p.coords.accuracy);
-    }, (err)=>{ console.warn('watchPosition error',err); }, opts); }
-  },(err)=>{
-    showToast('現在地エラー: '+(err.message||err),'error');
-  },opts);
-});
-function updateUserLocation(lat,lon,acc){
-  const ll=[lat,lon];
-  if(!userMarker){
-    userMarker = L.circleMarker(ll,{radius:6,color:'#4ea1ff',weight:2,fillColor:'#4ea1ff',fillOpacity:0.9});
-    userMarker.addTo(userLayer);
-  }else{
-    userMarker.setLatLng(ll);
-  }
-  const r = Math.max(10, Math.min(500, +(acc||50)));
-  if(!userAccCircle){
-    userAccCircle = L.circle(ll,{radius:r,color:'#4ea1ff',weight:1,fillColor:'#4ea1ff',fillOpacity:0.15});
-    userAccCircle.addTo(userLayer);
-  }else{
-    userAccCircle.setLatLng(ll); userAccCircle.setRadius(r);
-  }
-}
-
-// 4) 生成処理
-async function generate(){
-  fab.classList.add('loading'); fab.disabled=true;
-  let errorMsg='';
-  try{
-    const selected=CATS.filter(c=>document.getElementById(`chk-${c.id}`).checked);
-    if(!selected.length){ showToast('少なくとも1つ選択してください','error'); return; }
-    const weights={}; selected.forEach(c=>{
-      const v=parseFloat(document.getElementById(`wt-${c.id}`).value)||0;
-      weights[c.id]=Math.max(0,Math.min(1,v));
-    });
-
-    if(gridLayer) map.removeLayer(gridLayer); if(labelLayer) map.removeLayer(labelLayer);
-    Object.values(pointLayers).forEach(l=>map.removeLayer(l));
-
-    const b=map.getBounds(); const bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()];
-
-    const useLoaded = document.getElementById('use-loaded').checked && loadedDataset;
-    const catPts={}; selected.forEach(c=>catPts[c.id]=[]);
-    let allFeatures=[];
-
-    if(useLoaded){
-      loadedDataset.features.forEach(fe=>{
-        if(!fe || !fe.geometry || fe.geometry.type!=='Point') return;
-        const k=fe.properties?.category;
-        if(!k || !(k in catPts)) return;
-        const [lon,lat]=fe.geometry.coordinates;
-        const pt=turf.point([lon,lat], fe.properties||{});
-        catPts[k].push(pt); allFeatures.push(pt);
-      });
-    }else{
-      // 食関連の広めの候補を一括取得してからローカルで分類
-      const amVals = 'restaurant|fast_food|food_court|cafe|ice_cream|bar|pub|biergarten|marketplace';
-      const shopVals = 'bakery|confectionery|pastry|ice_cream|chocolate|deli|supermarket|convenience|butcher|seafood|greengrocer|alcohol|tea|coffee|beverages|cheese|farm|health_food|spices|herbalist|dairy';
-      const qLines=[];
-      ['node','way','rel'].forEach(t=>{
-        qLines.push(`${t}["amenity"~"^(${amVals})$"](${bb[0]},${bb[1]},${bb[2]},${bb[3]});`);
-        qLines.push(`${t}["shop"~"^(${shopVals})$"](${bb[0]},${bb[1]},${bb[2]},${bb[3]});`);
-      });
-      const query=`[out:json][timeout:40];\n(\n${qLines.join('\n')}\n);\nout center;`;
-
-      const ENDPOINTS=[
-        'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-        'https://overpass.openstreetmap.ru/api/interpreter',
-        'https://overpass.osm.ch/api/interpreter'
-      ];
-      let data; let lastErr;
-      for(const ep of ENDPOINTS){
-        try{
-          const res=await fetch(ep,{
-            method:'POST',
-            headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','Accept':'application/json'},
-            body:'data='+encodeURIComponent(query)
-          });
-          if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-          data=await res.json();
-          break;
-        }catch(e){ lastErr=e; }
-      }
-      if(!data) throw new Error('API 取得失敗: '+(lastErr?.message||'unknown'));
-
-      const push=(k,pt)=>{ if(catPts[k]){ pt.properties=Object.assign({category:k}, pt.properties||{}); catPts[k].push(pt); allFeatures.push(pt); } };
-      const OTHER_ID='others';
-      const otherSelected = !!catPts[OTHER_ID];
-      const normalCats = selected.filter(c=>c.id!==OTHER_ID);
-      data.elements.forEach(el=>{
-        const lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon; if(!(lat&&lon)) return;
-        const tg=el.tags||{}; const name=tg.name||''; const pt=turf.point([lon,lat],tg);
-        let matched=false;
-        normalCats.forEach(c=>{ if(typeof c.test==='function' && c.test(tg,name)) { push(c.id,pt); matched=true; } });
-        if(!matched && otherSelected) push(OTHER_ID, pt);
-      });
-      if(!allFeatures.length) throw new Error('該当施設が見つかりませんでした');
-    }
-
-    if(!Object.values(catPts).some(v=>v.length)){
-      throw new Error('該当施設なし（読み込みデータ/選択カテゴリの組み合わせ）');
-    }
-
-    const cellKm = Math.max(0.1, Math.min(5, parseFloat(gridSizeEl.value)||0.4));
-    const grid=turf.squareGrid([bb[1],bb[0],bb[3],bb[2]],cellKm,{units:'kilometers'});
-    const scores=[];
-    grid.features.forEach(cell=>{
-      let s=0;
-      Object.entries(catPts).forEach(([k,arr])=>{
-        const w=weights[k]; if(!w) return;
-        arr.forEach(pt=>{ if(turf.booleanPointInPolygon(pt,cell)) s+=w; });
-      });
-      cell.properties.score=s; scores.push(s);
-    });
-
-    const ave=scores.reduce((a,b)=>a+b,0)/scores.length;
-    const std=Math.sqrt(scores.reduce((a,b)=>a+(b-ave)**2,0)/scores.length)||1e-9;
-    grid.features.forEach(f=>f.properties.dev=Math.round(50+10*(f.properties.score-ave)/std));
-
-    const maxScore=Math.max(...scores);
-    const scale=chroma.scale('YlOrRd').domain([0,maxScore||1]);
-    gridLayer=L.geoJson(grid,{style:f=>({fillColor:scale(f.properties.score).hex(),color:'#444',weight:0.4,fillOpacity:0.55}),
-      onEachFeature:(f,l)=>l.bindPopup(`Score: ${f.properties.score.toFixed(2)}<br>偏差値: ${f.properties.dev}`)});
-    labelLayer=L.layerGroup();
-    grid.features.forEach(f=>{
-      const [lon,lat]=turf.centerOfMass(f).geometry.coordinates;
-      L.marker([lat,lon],{icon:L.divIcon({className:'dev-label',html:f.properties.dev,iconSize:[24,12]})}).addTo(labelLayer);
-    });
-    toggleHeat();
-
-    const bounds = [];
-    selected.forEach(c=>{
-      const pts=catPts[c.id]; if(!pts.length) return;
-      pointLayers[c.id]=L.geoJson(turf.featureCollection(pts),{
-        pointToLayer:(f,ll)=>L.circleMarker(ll,{radius:3,color:c.color,weight:0.6,fillOpacity:0.85})
-      });
-      if(pointsCB.checked) pointLayers[c.id].addTo(map);
-      pts.forEach(p=>bounds.push([p.geometry.coordinates[1],p.geometry.coordinates[0]]));
-    });
-    // if(bounds.length){ map.fitBounds(bounds); }
-
-    if(useLoaded){
-      lastExport = loadedDataset;
-    }else{
-      lastExport = { type:'FeatureCollection', features:(allFeatures||[]).map(f=>f),
-        meta:{ created:new Date().toISOString(), bbox:bb, categories:selected.map(c=>c.id) } };
-    }
-
-    showToast('ヒートマップを更新しました');
-  }catch(err){
-    errorMsg = err.message||String(err);
-    showToast(errorMsg,'error');
-    console.error(err);
-  }finally{
-    fab.classList.remove('loading'); fab.disabled=false;
-  }
-}
-
-// 5) 保存・読み込み
-function saveGeoJSON(){
-  if(!lastExport){ showToast('保存できるデータがありません。先に「生成」を実行してください','error'); return; }
-  const blob=new Blob([JSON.stringify(lastExport,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
-  a.href=url; a.download=`foodmap_${stamp}.geojson`;
-  document.body.appendChild(a); a.click();
-  URL.revokeObjectURL(url); a.remove();
-  showToast('GeoJSONを保存しました');
-}
-
-async function onFileChosen(e){
-  const f=e.target.files[0];
-  e.target.value='';
-  if(!f) return;
-  try{
-    const text=await f.text();
-    const json=JSON.parse(text);
-    if(json.type!=='FeatureCollection' || !Array.isArray(json.features)) throw new Error('GeoJSON FeatureCollection ではありません');
-    const feats=(json.features||[]).filter(fe=>
-      fe && fe.geometry && fe.geometry.type==='Point' &&
-      Array.isArray(fe.geometry.coordinates) && fe.geometry.coordinates.length===2 &&
-      fe.properties && fe.properties.category
-    );
-    if(!feats.length) throw new Error('Point かつ properties.category 付き要素が見つかりません');
-
-    loadedDataset={type:'FeatureCollection',features:feats};
-    loadedInfo.textContent=`${feats.length} 点`;
-    loadedBadge.textContent='読込済み'; loadedBadge.classList.add('ok'); loadedBadge.classList.remove('warn');
-    document.getElementById('use-loaded').checked=true;
-    showToast('データを読み込みました');
-  }catch(err){
-    loadedDataset=null;
-    loadedInfo.textContent='—';
-    loadedBadge.textContent='未読込'; loadedBadge.classList.remove('ok'); loadedBadge.classList.add('warn');
-    showToast('読み込み失敗: '+err.message,'error');
-  }
-}
-
-// （営業中フィルタ機能は削除しました）
-</script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="https://unpkg.com/chroma-js@2.4.2/chroma.min.js"></script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

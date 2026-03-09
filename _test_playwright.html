@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>食べ歩きヒートマップ - Playwright テスト環境</title>
+  <style>
+    body { background: #1e293b; color: #f1f5f9; font-family: system-ui, sans-serif; padding: 40px; line-height: 1.6; }
+    .test-item { margin: 20px 0; padding: 20px; border-radius: 8px; border-left: 4px solid #4ea1ff; background: #0f172a; }
+    .test-title { font-weight: 700; color: #67e8f9; margin-bottom: 8px; }
+    .test-criteria { color: #cbd5e1; }
+    .status-pass { color: #4ade80; font-weight: 600; }
+    .status-fail { color: #f87171; font-weight: 600; }
+    .check-item { margin-left: 24px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<h1 style="margin-bottom: 40px;">🍜 食べ歩きヒートマップ - Playwright テスト環境</h1>
+
+<div class="test-item">
+  <div class="test-title">🔴 機能 1：結果の解釈支援機能</div>
+  <div class="test-criteria"><strong>目的:</strong> ヒートマップ生成後に、カテゴリスコアに基づく人間の気持ちいいメッセージを表示する。</div>
+  
+  <h3>テストケース:</h3>
+  <div class="check-item">✓ カレーが突出している時に「カレー激戦区！」などのメッセージ表示</div>
+  <div class="check-item">✓ ラーメンが少ない時に「ラーメンを探しましょう」というメッセージ表示</div>
+  <div class="check-item">✓ ストレスのない、ユーモアのあるメッセージ</div>
+  
+  <h3>判定基準:</h3>
+  <ul>
+    <li><span class="status-pass">待機中</span> generate() の後に解釈メッセージが表示されるか</li>
+    <li><span class="status-fail"></span> スコアの高いカテゴリのメッセージを表示するか</li>
+    <li><span class="status-fail"></span> ユーザーに親近感を与えるか</li>
+  </ul>
+</div>
+
+<div class="test-item">
+  <div class="test-title">🔴 機能 2：スクリーンショット共有機能</div>
+  <div class="test-criteria"><strong>目的:</strong> ヒートマップの画像として保存し、SNS で共有できる機能を実装する。</div>
+  
+  <h3>テストケース:</h3>
+  <div class="check-item">✓ シェアボタンの表示</div>
+  <div class="check-item">✓ マップ画面の正確な描画</div>
+  <div class="check-item">✓ PNG/画像としてのエクスポート</div>
+  
+  <h3>判定基準:</h3>
+  <ul>
+    <li><span class="status-pass">待機中</span> 「📸 スクリーンショット共有」ボタンの実装確認</li>
+    <li><span class="status-fail"></span> canvas に正確な地図描画か</li>
+    <li><span class="status-fail"></span> ファイルダウンロードが正しく動作するか</li>
+  </ul>
+</div>
+
+<div class="test-item">
+  <div class="test-title">🔴 機能 3：保存履歴機能</div>
+  <div class="test-criteria"><strong>目的:</strong> localStorage に以前のヒートマップを保存し、再表示・比較できる。</div>
+  
+  <h3>テストケース:</h3>
+  <div class="check-item">✓ 「履歴」タブ/セクションの追加</div>
+  <div class="check-item">✓ 保存されたデータが正しく localStorage に格納されるか</li>
+  <div class="check-item">✓ 古いデータの自動削除（最大 10 件まで）</div>
+  
+  <h3>判定基準:</h3>
+  <ul>
+    <li><span class="status-pass">待機中</span> localStorage への保存機能の実装確認</li>
+    <li><span class="status-fail"></span> 履歴表示 UI の実装確認</li>
+    <li><span class="status-fail"></span> 「復元」ボタンによる再表示か</li>
+  </ul>
+</div>
+
+<div class="test-item">
+  <div class="test-title">🟡 中優先度機能</div>
+  
+  <h3>機能 4: エリア指定モード</h3>
+  <div class="check-item">✓ 「🗺️ エリア指定」ボタン追加</div>
+  <div class="check-item">✓ 固定エリア一覧（渋谷、新宿など）から選択可能か</div>
+  
+  <h3>機能 5: 比較モード</h3>
+  <div class="check-item">✓ 「前の結果」と「今の結果」を並べて表示</div>
+  <div class="check-item">✓ カテゴリごとの増減率表示</div>
+  
+  <h3>機能 6: カテゴリのカスタマイズ UI</h3>
+  <div class="check-item">✓ ユーザーによるカテゴリ追加機能</div>
+  <div class="check-item">✓ 新しいカテゴリ名、色、重みの設定画面</div>
+</div>
+
+<div class="test-item">
+  <div class="test-title">🟢 ロープライオリティ機能（アイデア）</div>
+  
+  <h3>機能 7: アニメーション効果</h3>
+  <div class="check-item">✓ ヒートマップ生成時の fade-in アニメーション</div>
+  
+  <h3>機能 8: 音声フィードバック</h3>
+  <div class="check-item">✓ 「ヒートマップ作成完了です！」の読み上げ</div>
+  
+  <h3>機能 9: テーマ切り替え</h3>
+  <div class="check-item">✓ OpenStreetMap 標準 / ダークモード など背景画像の切り替え</div>
+  
+  <h3>機能 10: アラート機能（スマホ向け）</h3>
+  <div class="check-item">✓ Web API を使ったネイティブアラート表示</div>
+</div>
+
+<p style="margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155;">
+  <strong>🎯 バズの鍵:</strong><br>
+  • わかりやすさ - 偏差値だけでなく「カレー激戦区！」で直感的に理解させる<br>
+  • 共有しやすい - スクリーンショット機能で SNS で拡散しやすくする<br>
+  •再利用性 - 保存履歴で以前作ったヒートマップを復元・再活用できる<br>
+</p>
+
+<p style="color: #64748b; text-align: center;">
+  TDD を用いた Playwright テスト環境は準備が完了しました。<br>
+  各機能を順次実装し、テストパスさせてください。
+</p>
+
+</body>
+</html>
