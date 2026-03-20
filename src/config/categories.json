@@ -1,0 +1,37 @@
+{
+  "curry": {
+    "id": "curry",
+    "label": "カレー",
+    "color": "#d97706",
+    "clauses": ["amenity=restaurant"],
+    "description": "カレーレストラン・ラーメン・食堂など"
+  },
+  "ramen": {
+    "id": "ramen",
+    "label": "ラーメン",
+    "color": "#e11d48",
+    "clauses": ["amenity=restaurant"],
+    "description": "ラーメン店など"
+  },
+  "sushi": {
+    "id": "sushi",
+    "label": "寿司",
+    "color": "#0ea5e9",
+    "clauses": ["amenity=restaurant"],
+    "description": "寿司・刺身・海鮮など"
+  },
+  "cafe": {
+    "id": "cafe",
+    "label": "カフェ",
+    "color": "#8b5cf6",
+    "clauses": ["amenity=cafe"],
+    "description": "喫茶店・コーヒーショップなど"
+  },
+  "bakery": {
+    "id": "bakery",
+    "label": "ベーカリー",
+    "color": "#a16207",
+    "clauses": ["shop=bakery"],
+    "description": "パン屋・菓子店など"
+  }
+}
